@@ -1,0 +1,47 @@
+param(
+    [string]$Version = "latest"
+)
+
+$Repo = "zifer-lang/zifer"
+$InstallDir = "$env:USERPROFILE\.zifer"
+$BinDir = "$InstallDir\bin"
+
+function Get-Arch {
+    if ([Environment]::Is64BitOperatingSystem) {
+        if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { return "arm64" }
+        return "x64"
+    }
+    Write-Error "Unsupported architecture"
+    exit 1
+}
+
+$Arch = Get-Arch
+
+if ($Version -eq "latest") {
+    $Url = "https://github.com/$Repo/releases/latest/download/zifer-windows-$Arch.zip"
+} else {
+    $Url = "https://github.com/$Repo/releases/download/v$Version/zifer-windows-$Arch.zip"
+}
+
+Write-Host "==> Installing Zifer ($Version) for windows-$Arch"
+New-Item -ItemType Directory -Force -Path $BinDir | Out-Null
+
+$TmpZip = New-TemporaryFile
+Write-Host "==> Downloading: $Url"
+Invoke-WebRequest -Uri $Url -OutFile $TmpZip
+
+Write-Host "==> Extracting"
+Expand-Archive -Path $TmpZip -DestinationPath $BinDir -Force
+Remove-Item $TmpZip
+
+$UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
+if ($UserPath -notlike "*$BinDir*") {
+    [Environment]::SetEnvironmentVariable("Path", "$UserPath;$BinDir", "User")
+    Write-Host "==> Added Zifer to your user PATH"
+}
+
+Write-Host ""
+Write-Host "Zifer installed to $BinDir\zifer.exe" -ForegroundColor Green
+Write-Host "Open a new terminal, then try:"
+Write-Host "  zifer --version"
+Write-Host "  zifer new my-app; cd my-app; zifer run main.zf"

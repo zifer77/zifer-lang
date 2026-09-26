@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO="zifer-lang/zifer"
+INSTALL_DIR="${HOME}/.zifer"
+BIN_DIR="${INSTALL_DIR}/bin"
+VERSION="latest"
+
+for arg in "$@"; do
+  case "$arg" in
+    --version=*) VERSION="${arg#*=}" ;;
+    *) echo "Unknown flag: $arg" >&2; exit 1 ;;
+  esac
+done
+
+detect_os() {
+  case "$(uname -s)" in
+    Linux*) echo "linux" ;;
+    Darwin*) echo "darwin" ;;
+    *) echo "unsupported"; exit 1 ;;
+  esac
+}
+
+detect_arch() {
+  case "$(uname -m)" in
+    x86_64|amd64) echo "x64" ;;
+    arm64|aarch64) echo "arm64" ;;
+    *) echo "unsupported"; exit 1 ;;
+  esac
+}
+
+OS="$(detect_os)"
+ARCH="$(detect_arch)"
+
+if [ "$VERSION" = "latest" ]; then
+  URL="https://github.com/${REPO}/releases/latest/download/zifer-${OS}-${ARCH}.tar.gz"
+else
+  URL="https://github.com/${REPO}/releases/download/v${VERSION}/zifer-${OS}-${ARCH}.tar.gz"
+fi
+
+echo "==> Installing Zifer (${VERSION}) for ${OS}-${ARCH}"
+mkdir -p "$BIN_DIR"
+
+TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TMP_DIR"' EXIT
+
+echo "==> Downloading: $URL"
+curl -fsSL "$URL" -o "${TMP_DIR}/zifer.tar.gz"
+
+echo "==> Extracting"
+tar -xzf "${TMP_DIR}/zifer.tar.gz" -C "$BIN_DIR"
+chmod +x "${BIN_DIR}/zifer"
+
+add_to_path() {
+  local rc_file="$1"
+  local line="export PATH=\"\$HOME/.zifer/bin:\$PATH\""
+  if [ -f "$rc_file" ] && ! grep -qF "$line" "$rc_file"; then
+    echo "" >> "$rc_file"
+    echo "# Zifer language" >> "$rc_file"
+    echo "$line" >> "$rc_file"
+    echo "==> Added Zifer to PATH in $rc_file"
+  fi
+}
+
+add_to_path "${HOME}/.bashrc"
+add_to_path "${HOME}/.zshrc"
+
+echo ""
+echo "✅ Zifer installed to ${BIN_DIR}/zifer"
+echo ""
+echo "Restart your shell or run:"
+echo "  export PATH=\"\$HOME/.zifer/bin:\$PATH\""
+echo ""
+echo "Then try:"
+echo "  zifer --version"
+echo "  zifer new my-app && cd my-app && zifer run main.zf"

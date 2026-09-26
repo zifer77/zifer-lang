@@ -1,0 +1,18 @@
+use anyhow::Result;
+
+/// Installs a Zifer package (`zifer install <pkg>`).
+///
+/// Package management/registry is not implemented yet; this is a stub
+/// that documents the intended CLI surface.
+pub fn execute(package: Option<&str>) -> Result<()> {
+    match package {
+        Some(pkg) => {
+            println!("[zifer] would install package `{pkg}`");
+            println!("[zifer] a public package registry is not live yet — track progress in docs/deploy.md");
+        }
+        None => {
+            println!("[zifer] would install dependencies listed in zifer.toml");
+        }
+    }
+    Ok(())
+}

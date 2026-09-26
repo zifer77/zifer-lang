@@ -1,0 +1,84 @@
+//! AST node definitions for the Zifer language.
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Type {
+    Int,
+    Str,
+    Bool,
+    Arr(Box<Type>),
+    Map,
+    Void,
+    Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Literal {
+    Int(i64),
+    Str(String),
+    Bool(bool),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Expr {
+    Literal(Literal),
+    Identifier(String),
+    BinOp {
+        op: String,
+        left: Box<Expr>,
+        right: Box<Expr>,
+    },
+    CallExpr {
+        callee: String,
+        args: Vec<Expr>,
+    },
+    ObjectLiteral(Vec<(String, Expr)>),
+    ArrayLiteral(Vec<Expr>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Stmt {
+    LetStmt {
+        name: String,
+        ty: Option<Type>,
+        value: Expr,
+        mutable: bool,
+    },
+    ReturnStmt(Option<Expr>),
+    IfStmt {
+        cond: Expr,
+        then_branch: Vec<Stmt>,
+        else_branch: Option<Vec<Stmt>>,
+    },
+    ForStmt {
+        init: Box<Option<Stmt>>,
+        cond: Option<Expr>,
+        post: Option<Expr>,
+        body: Vec<Stmt>,
+    },
+    ExprStmt(Expr),
+    FnDecl {
+        name: String,
+        params: Vec<(String, Type)>,
+        ret: Type,
+        body: Vec<Stmt>,
+        is_async: bool,
+    },
+    ServerBlock {
+        port: Expr,
+        body: Vec<Stmt>,
+    },
+    RouteBlock {
+        method: String,
+        path: String,
+        body: Vec<Stmt>,
+    },
+    ModelDecl {
+        name: String,
+        fields: Vec<(String, Type)>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Program {
+    pub statements: Vec<Stmt>,
+}

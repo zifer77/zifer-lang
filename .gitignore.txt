@@ -1,0 +1,21 @@
+# Rust
+compiler/target/
+**/*.rs.bk
+Cargo.lock.bak
+
+# Node / VS Code extension
+node_modules/
+*.vsix
+
+# Env
+.env
+.env.local
+
+# Zifer
+zifer_modules/
+dist/
+*.zfc
+
+# OS
+.DS_Store
+Thumbs.db

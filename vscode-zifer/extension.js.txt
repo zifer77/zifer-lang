@@ -1,0 +1,10 @@
+// Minimal activation file. Zifer currently ships as a "grammar-only"
+// extension (syntax highlighting + snippets); an LSP client can be
+// wired in here once a `zifer-lsp` server exists.
+function activate(context) {
+  console.log("Zifer language extension activated");
+}
+
+function deactivate() {}
+
+module.exports = { activate, deactivate };

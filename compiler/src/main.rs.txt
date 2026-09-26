@@ -1,0 +1,75 @@
+mod ast;
+mod checker;
+mod codegen;
+mod commands;
+mod lexer;
+mod parser;
+mod runtime;
+
+use clap::{Parser as ClapParser, Subcommand};
+use colored::Colorize;
+
+#[derive(ClapParser)]
+#[command(name = "zifer", version, about = "The Zifer backend language compiler & CLI")]
+struct Cli {
+    #[command(subcommand)]
+    command: Option<Commands>,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Run a .zf file with the interpreter
+    Run { file: String },
+    /// Build a .zf file into a native binary (LLVM backend, WIP)
+    Build {
+        file: String,
+        #[arg(short, long, default_value = "dist/app")]
+        out: String,
+    },
+    /// Scaffold a new Zifer project
+    New { name: String },
+    /// Install a package or project dependencies
+    Install { package: Option<String> },
+    /// Run tests under a directory (default: ./tests)
+    Test {
+        #[arg(default_value = "tests")]
+        dir: String,
+    },
+    /// Deploy a built Zifer app
+    Deploy { target: Option<String> },
+}
+
+const BANNER: &str = r#"
+ ________  ___  ________ _______   ________
+|\_____  \|\  \|\  _____\\  ___ \ |\   __  \
+ \|___/  /\ \  \ \  \__/\ \   __/|\ \  \|\  \
+     /  / /\ \  \ \   __\\ \  \_|/_\ \   _  _\
+    /  /_/__\ \  \ \  \_| \ \  \_|\ \ \  \\  \|
+   |\________\ \__\ \__\   \ \_______\ \__\\ _\
+    \|_______|\|__|\|__|    \|_______|\|__|\|__|
+
+        The Zifer backend language — v0.1.0
+"#;
+
+fn main() {
+    let cli = Cli::parse();
+
+    let result = match cli.command {
+        None => {
+            println!("{}", BANNER.cyan());
+            println!("Run `zifer --help` to see available commands.");
+            Ok(())
+        }
+        Some(Commands::Run { file }) => commands::run::execute(&file),
+        Some(Commands::Build { file, out }) => commands::build::execute(&file, &out),
+        Some(Commands::New { name }) => commands::new::execute(&name),
+        Some(Commands::Install { package }) => commands::install::execute(package.as_deref()),
+        Some(Commands::Test { dir }) => commands::test::execute(&dir),
+        Some(Commands::Deploy { target }) => commands::deploy::execute(target.as_deref()),
+    };
+
+    if let Err(e) = result {
+        eprintln!("{} {e}", "error:".red().bold());
+        std::process::exit(1);
+    }
+}

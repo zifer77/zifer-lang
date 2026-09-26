@@ -1,0 +1,211 @@
+//! Code generation.
+//!
+//! The long-term goal is native code generation via LLVM (using `inkwell`
+//! or direct `llvm-sys` bindings) so Zifer binaries run without a VM.
+//! That backend is not wired up yet, so `compile_to_native` currently
+//! returns an error and `run` falls back to a tree-walking interpreter,
+//! which is enough to execute the language today and validate the
+//! frontend (lexer/parser/checker) end-to-end.
+//!
+//! TODO(codegen): implement LLVM IR emission per AST node:
+//!   - FnDecl        -> LLVM function definition
+//!   - ServerBlock   -> spawn native HTTP listener, dispatch to RouteBlocks
+//!   - BinOp/Literal -> standard IR instructions
+//!   - CallExpr      -> call or intrinsic (println, http helpers, etc.)
+//! TODO(codegen): link against a small Zifer runtime (`runtime.rs`) compiled
+//!   to a static lib and linked into the final native binary.
+
+use crate::ast::*;
+use crate::runtime::Value;
+use anyhow::{anyhow, Result};
+use std::collections::HashMap;
+
+pub fn compile_to_native(_program: &Program, _out_path: &str) -> Result<()> {
+    Err(anyhow!(
+        "Native LLVM codegen is not implemented yet. Use `zifer run` \
+         (interpreter) while the backend is under development."
+    ))
+}
+
+/// Tree-walking interpreter used by `zifer run` until native codegen lands.
+pub struct Interpreter {
+    globals: HashMap<String, Value>,
+}
+
+enum Flow {
+    Normal,
+    Return(Value),
+}
+
+impl Interpreter {
+    pub fn new() -> Self {
+        Interpreter { globals: HashMap::new() }
+    }
+
+    pub fn run(&mut self, program: &Program) -> Result<()> {
+        for stmt in &program.statements {
+            if let Flow::Return(_) = self.exec_stmt(stmt, &mut HashMap::new())? {
+                break;
+            }
+        }
+        Ok(())
+    }
+
+    fn exec_block(&mut self, body: &[Stmt], scope: &mut HashMap<String, Value>) -> Result<Flow> {
+        for stmt in body {
+            match self.exec_stmt(stmt, scope)? {
+                Flow::Normal => {}
+                ret @ Flow::Return(_) => return Ok(ret),
+            }
+        }
+        Ok(Flow::Normal)
+    }
+
+    fn exec_stmt(&mut self, stmt: &Stmt, scope: &mut HashMap<String, Value>) -> Result<Flow> {
+        match stmt {
+            Stmt::LetStmt { name, value, .. } => {
+                let v = self.eval_expr(value, scope)?;
+                scope.insert(name.clone(), v);
+                Ok(Flow::Normal)
+            }
+            Stmt::ReturnStmt(Some(e)) => Ok(Flow::Return(self.eval_expr(e, scope)?)),
+            Stmt::ReturnStmt(None) => Ok(Flow::Return(Value::Void)),
+            Stmt::ExprStmt(e) => {
+                self.eval_expr(e, scope)?;
+                Ok(Flow::Normal)
+            }
+            Stmt::IfStmt { cond, then_branch, else_branch } => {
+                let c = self.eval_expr(cond, scope)?;
+                if is_truthy(&c) {
+                    self.exec_block(then_branch, scope)
+                } else if let Some(else_b) = else_branch {
+                    self.exec_block(else_b, scope)
+                } else {
+                    Ok(Flow::Normal)
+                }
+            }
+            Stmt::ForStmt { init, cond, post, body } => {
+                if let Some(s) = init.as_ref() {
+                    self.exec_stmt(s, scope)?;
+                }
+                loop {
+                    if let Some(c) = cond {
+                        if !is_truthy(&self.eval_expr(c, scope)?) {
+                            break;
+                        }
+                    }
+                    match self.exec_block(body, scope)? {
+                        Flow::Normal => {}
+                        ret @ Flow::Return(_) => return Ok(ret),
+                    }
+                    if let Some(p) = post {
+                        self.eval_expr(p, scope)?;
+                    }
+                }
+                Ok(Flow::Normal)
+            }
+            Stmt::FnDecl { .. } => {
+                // Top-level fns are registered lazily on first call in this
+                // simple interpreter; full closures are future work.
+                Ok(Flow::Normal)
+            }
+            Stmt::ServerBlock { port, body } => {
+                let p = self.eval_expr(port, scope)?;
+                println!("[zifer] (simulated) server listening on port {p}");
+                println!("[zifer] note: native HTTP serving requires the LLVM backend (see codegen.rs TODO).");
+                self.exec_block(body, scope)?;
+                Ok(Flow::Normal)
+            }
+            Stmt::RouteBlock { method, path, body } => {
+                println!("[zifer] registered route {method} {path}");
+                self.exec_block(body, scope)?;
+                Ok(Flow::Normal)
+            }
+            Stmt::ModelDecl { name, .. } => {
+                println!("[zifer] registered model `{name}`");
+                Ok(Flow::Normal)
+            }
+        }
+    }
+
+    fn eval_expr(&mut self, expr: &Expr, scope: &mut HashMap<String, Value>) -> Result<Value> {
+        match expr {
+            Expr::Literal(Literal::Int(n)) => Ok(Value::Int(*n)),
+            Expr::Literal(Literal::Str(s)) => Ok(Value::Str(s.clone())),
+            Expr::Literal(Literal::Bool(b)) => Ok(Value::Bool(*b)),
+            Expr::Identifier(name) => scope
+                .get(name)
+                .or_else(|| self.globals.get(name))
+                .cloned()
+                .ok_or_else(|| anyhow!("Undefined variable `{name}`")),
+            Expr::BinOp { op, left, right } => {
+                let l = self.eval_expr(left, scope)?;
+                let r = self.eval_expr(right, scope)?;
+                eval_binop(op, l, r)
+            }
+            Expr::CallExpr { callee, args } => {
+                let mut vals = Vec::new();
+                for a in args {
+                    vals.push(self.eval_expr(a, scope)?);
+                }
+                self.call_builtin(callee, vals)
+            }
+            Expr::ObjectLiteral(fields) => {
+                let mut map = HashMap::new();
+                for (k, v) in fields {
+                    map.insert(k.clone(), self.eval_expr(v, scope)?);
+                }
+                Ok(Value::Map(map))
+            }
+            Expr::ArrayLiteral(items) => {
+                let mut vals = Vec::new();
+                for i in items {
+                    vals.push(self.eval_expr(i, scope)?);
+                }
+                Ok(Value::Arr(vals))
+            }
+        }
+    }
+
+    fn call_builtin(&mut self, name: &str, args: Vec<Value>) -> Result<Value> {
+        match name {
+            "print" | "println" => {
+                let joined: Vec<String> = args.iter().map(|v| v.to_string()).collect();
+                println!("{}", joined.join(" "));
+                Ok(Value::Void)
+            }
+            other => Err(anyhow!("Unknown function `{other}`")),
+        }
+    }
+}
+
+fn is_truthy(v: &Value) -> bool {
+    match v {
+        Value::Bool(b) => *b,
+        Value::Int(n) => *n != 0,
+        Value::Str(s) => !s.is_empty(),
+        Value::Void => false,
+        _ => true,
+    }
+}
+
+fn eval_binop(op: &str, l: Value, r: Value) -> Result<Value> {
+    use Value::*;
+    Ok(match (op, l, r) {
+        ("+", Int(a), Int(b)) => Int(a + b),
+        ("+", Str(a), Str(b)) => Str(a + &b),
+        ("-", Int(a), Int(b)) => Int(a - b),
+        ("*", Int(a), Int(b)) => Int(a * b),
+        ("/", Int(a), Int(b)) => Int(a / b),
+        ("%", Int(a), Int(b)) => Int(a % b),
+        ("==", a, b) => Bool(a.to_string() == b.to_string()),
+        ("!=", a, b) => Bool(a.to_string() != b.to_string()),
+        ("<", Int(a), Int(b)) => Bool(a < b),
+        (">", Int(a), Int(b)) => Bool(a > b),
+        ("<=", Int(a), Int(b)) => Bool(a <= b),
+        (">=", Int(a), Int(b)) => Bool(a >= b),
+        ("&&", a, b) => Bool(is_truthy(&a) && is_truthy(&b)),
+        ("||", a, b) => Bool(is_truthy(&a) || is_truthy(&b)),
+        (op, a, b) => return Err(anyhow!("Unsupported operation `{op}` on {a} and {b}")),
+    })
+}

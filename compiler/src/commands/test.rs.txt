@@ -1,0 +1,50 @@
+use crate::lexer::Lexer;
+use crate::parser::Parser;
+use anyhow::{Context, Result};
+use std::fs;
+use std::path::Path;
+
+/// Runs every `*.zf` file under `test_dir` through the parser as a basic
+/// smoke test (`zifer test`). A dedicated `test { }` block / assertion API
+/// is future work.
+pub fn execute(test_dir: &str) -> Result<()> {
+    let dir = Path::new(test_dir);
+    if !dir.exists() {
+        println!("No test directory `{test_dir}` found; nothing to run.");
+        return Ok(());
+    }
+
+    let mut passed = 0;
+    let mut failed = 0;
+
+    for entry in fs::read_dir(dir).with_context(|| format!("Could not read `{test_dir}`"))? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("zf") {
+            continue;
+        }
+        let source = fs::read_to_string(&path)?;
+        let tokens = Lexer::new(&source).tokenize();
+        let result = std::panic::catch_unwind(|| {
+            let mut parser = Parser::new(tokens);
+            parser.parse_program();
+        });
+
+        match result {
+            Ok(_) => {
+                println!("PASS  {}", path.display());
+                passed += 1;
+            }
+            Err(_) => {
+                println!("FAIL  {}", path.display());
+                failed += 1;
+            }
+        }
+    }
+
+    println!("\n{passed} passed, {failed} failed");
+    if failed > 0 {
+        anyhow::bail!("{failed} test file(s) failed to parse");
+    }
+    Ok(())
+}

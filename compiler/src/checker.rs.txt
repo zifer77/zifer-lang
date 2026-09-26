@@ -1,0 +1,172 @@
+//! Minimal type checker for Zifer.
+//!
+//! Verifies that identifiers are declared before use and does light,
+//! best-effort type inference for literals. This is intentionally simple:
+//! it favors catching obvious mistakes (undeclared variables) over full
+//! soundness, and is expected to grow alongside the real LLVM backend.
+
+use crate::ast::*;
+use std::collections::HashMap;
+
+pub struct Checker {
+    scopes: Vec<HashMap<String, Type>>,
+}
+
+#[derive(Debug)]
+pub struct CheckError(pub String);
+
+impl Checker {
+    pub fn new() -> Self {
+        Checker { scopes: vec![HashMap::new()] }
+    }
+
+    fn push_scope(&mut self) {
+        self.scopes.push(HashMap::new());
+    }
+
+    fn pop_scope(&mut self) {
+        self.scopes.pop();
+    }
+
+    fn declare(&mut self, name: &str, ty: Type) {
+        self.scopes.last_mut().unwrap().insert(name.to_string(), ty);
+    }
+
+    fn lookup(&self, name: &str) -> Option<Type> {
+        for scope in self.scopes.iter().rev() {
+            if let Some(t) = scope.get(name) {
+                return Some(t.clone());
+            }
+        }
+        None
+    }
+
+    pub fn check_program(&mut self, program: &Program) -> Result<(), CheckError> {
+        for stmt in &program.statements {
+            self.check_stmt(stmt)?;
+        }
+        Ok(())
+    }
+
+    fn check_stmt(&mut self, stmt: &Stmt) -> Result<(), CheckError> {
+        match stmt {
+            Stmt::LetStmt { name, ty, value, .. } => {
+                let inferred = self.infer_expr(value)?;
+                let final_ty = ty.clone().unwrap_or(inferred);
+                self.declare(name, final_ty);
+                Ok(())
+            }
+            Stmt::ReturnStmt(Some(e)) => {
+                self.infer_expr(e)?;
+                Ok(())
+            }
+            Stmt::ReturnStmt(None) => Ok(()),
+            Stmt::ExprStmt(e) => {
+                self.infer_expr(e)?;
+                Ok(())
+            }
+            Stmt::IfStmt { cond, then_branch, else_branch } => {
+                self.infer_expr(cond)?;
+                self.push_scope();
+                for s in then_branch {
+                    self.check_stmt(s)?;
+                }
+                self.pop_scope();
+                if let Some(else_b) = else_branch {
+                    self.push_scope();
+                    for s in else_b {
+                        self.check_stmt(s)?;
+                    }
+                    self.pop_scope();
+                }
+                Ok(())
+            }
+            Stmt::ForStmt { init, cond, post, body } => {
+                self.push_scope();
+                if let Some(s) = init.as_ref() {
+                    self.check_stmt(s)?;
+                }
+                if let Some(c) = cond {
+                    self.infer_expr(c)?;
+                }
+                if let Some(p) = post {
+                    self.infer_expr(p)?;
+                }
+                for s in body {
+                    self.check_stmt(s)?;
+                }
+                self.pop_scope();
+                Ok(())
+            }
+            Stmt::FnDecl { name, params, ret, body, .. } => {
+                self.declare(name, ret.clone());
+                self.push_scope();
+                for (pname, pty) in params {
+                    self.declare(pname, pty.clone());
+                }
+                for s in body {
+                    self.check_stmt(s)?;
+                }
+                self.pop_scope();
+                Ok(())
+            }
+            Stmt::ServerBlock { port, body } => {
+                self.infer_expr(port)?;
+                self.push_scope();
+                for s in body {
+                    self.check_stmt(s)?;
+                }
+                self.pop_scope();
+                Ok(())
+            }
+            Stmt::RouteBlock { body, .. } => {
+                self.push_scope();
+                for s in body {
+                    self.check_stmt(s)?;
+                }
+                self.pop_scope();
+                Ok(())
+            }
+            Stmt::ModelDecl { name, fields } => {
+                self.declare(name, Type::Map);
+                let _ = fields;
+                Ok(())
+            }
+        }
+    }
+
+    fn infer_expr(&mut self, expr: &Expr) -> Result<Type, CheckError> {
+        match expr {
+            Expr::Literal(Literal::Int(_)) => Ok(Type::Int),
+            Expr::Literal(Literal::Str(_)) => Ok(Type::Str),
+            Expr::Literal(Literal::Bool(_)) => Ok(Type::Bool),
+            Expr::Identifier(name) => self
+                .lookup(name)
+                .ok_or_else(|| CheckError(format!("Undeclared variable `{name}`"))),
+            Expr::BinOp { left, right, .. } => {
+                self.infer_expr(left)?;
+                self.infer_expr(right)?;
+                Ok(Type::Unknown)
+            }
+            Expr::CallExpr { args, .. } => {
+                for a in args {
+                    self.infer_expr(a)?;
+                }
+                Ok(Type::Unknown)
+            }
+            Expr::ObjectLiteral(fields) => {
+                for (_, v) in fields {
+                    self.infer_expr(v)?;
+                }
+                Ok(Type::Map)
+            }
+            Expr::ArrayLiteral(items) => {
+                let mut elem_ty = Type::Unknown;
+                for i in items {
+                    elem_ty = self.infer_expr(i)?;
+                }
+                Ok(Type::Arr(Box::new(elem_ty)))
+            }
+        }
+    }
+}

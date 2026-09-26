@@ -1,0 +1,25 @@
+# Deploying Zifer Apps
+
+## Today
+
+Native binary output (`zifer build`) depends on the LLVM backend, which is
+still under active development (see `compiler/src/codegen.rs`). Until then:
+
+1. Use `zifer run main.zf` to execute your app via the interpreter.
+2. For anything you need running continuously, wrap it the way you would any
+   long-running process: a `systemd` unit, a Docker container running
+   `zifer run`, or a process manager like `pm2`.
+
+## Once native builds land
+
+```bash
+zifer build main.zf -o dist/app
+./dist/app
+```
+
+Planned deployment targets (`zifer deploy <target>`):
+- Docker image build + push
+- Fly.io / Railway-style single-command deploys
+- Static binary upload to your own server
+
+Track progress in the project's GitHub issues and `CHANGELOG.md`.

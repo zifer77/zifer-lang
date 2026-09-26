@@ -1,0 +1,45 @@
+{
+  "name": "zifer-lang",
+  "displayName": "Zifer",
+  "description": "Syntax highlighting and snippets for the Zifer backend language (.zf)",
+  "version": "0.1.0",
+  "publisher": "zifer-lang",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Programming Languages", "Snippets"],
+  "contributes": {
+    "languages": [
+      {
+        "id": "zifer",
+        "aliases": ["Zifer", "zifer"],
+        "extensions": [".zf"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "zifer",
+        "scopeName": "source.zifer",
+        "path": "./syntaxes/zifer.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "zifer",
+        "path": "./snippets/zifer.json"
+      }
+    ]
+  },
+  "main": "./extension.js",
+  "activationEvents": ["onLanguage:zifer"],
+  "scripts": {
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zifer-lang/zifer"
+  }
+}

@@ -1,0 +1,63 @@
+//! Small runtime helpers shared by the interpreter fallback and (eventually)
+//! generated native code: a dynamic `Value` type and basic HTTP-server glue.
+
+use std::collections::HashMap;
+use std::fmt;
+
+#[derive(Debug, Clone)]
+pub enum Value {
+    Int(i64),
+    Str(String),
+    Bool(bool),
+    Arr(Vec<Value>),
+    Map(HashMap<String, Value>),
+    Void,
+}
+
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Value::Int(n) => write!(f, "{n}"),
+            Value::Str(s) => write!(f, "{s}"),
+            Value::Bool(b) => write!(f, "{b}"),
+            Value::Arr(items) => {
+                write!(f, "[")?;
+                for (i, v) in items.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{v}")?;
+                }
+                write!(f, "]")
+            }
+            Value::Map(m) => {
+                write!(f, "{{")?;
+                for (i, (k, v)) in m.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{k}: {v}")?;
+                }
+                write!(f, "}}")
+            }
+            Value::Void => write!(f, "void"),
+        }
+    }
+}
+
+pub fn to_json(value: &Value) -> serde_json::Value {
+    match value {
+        Value::Int(n) => serde_json::json!(n),
+        Value::Str(s) => serde_json::json!(s),
+        Value::Bool(b) => serde_json::json!(b),
+        Value::Arr(items) => serde_json::Value::Array(items.iter().map(to_json).collect()),
+        Value::Map(m) => {
+            let mut obj = serde_json::Map::new();
+            for (k, v) in m {
+                obj.insert(k.clone(), to_json(v));
+            }
+            serde_json::Value::Object(obj)
+        }
+        Value::Void => serde_json::Value::Null,
+    }
+}

@@ -1,0 +1,53 @@
+# Backend: Servers, Routes & Models
+
+Zifer's standard library treats HTTP servers as first-class syntax.
+
+## Servers
+
+```zifer
+server on 3000 {
+    // routes go here
+}
+```
+
+## Routes
+
+```zifer
+route GET "/users" {
+    return { users: [] }
+}
+
+route POST "/users" {
+    return { created: true }
+}
+
+route DELETE "/users/:id" {
+    return { deleted: true }
+}
+```
+
+Supported methods: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`.
+
+Path parameters (`:id`) and the request body are planned to be exposed as
+`params` and `body` inside the route block — see the roadmap in this repo's
+issues.
+
+## Models
+
+```zifer
+model User {
+    id: int,
+    name: str,
+    email: str,
+}
+```
+
+Models describe shape today; database binding (e.g. to Postgres/SQLite) is
+planned for a `zifer.toml`-configured data layer.
+
+## Current execution model
+
+Until native codegen (LLVM) lands, `zifer run` executes your program with a
+tree-walking interpreter (`compiler/src/codegen.rs`). Server/route blocks are
+registered and logged, which is enough to validate program structure while
+the real HTTP listener and native binary output are built out.

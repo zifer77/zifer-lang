@@ -1,0 +1,12 @@
+use anyhow::Result;
+
+/// `zifer deploy` — planned to package a built binary + assets and push it
+/// to a target (e.g. a Zifer Cloud/Fly.io/Docker target). See docs/deploy.md.
+pub fn execute(target: Option<&str>) -> Result<()> {
+    let target = target.unwrap_or("default");
+    println!("[zifer] deploy target: {target}");
+    println!("[zifer] deployment pipelines are not implemented yet.");
+    println!("[zifer] for now: `zifer build` a binary and deploy it like any native executable");
+    println!("        (Docker, systemd, or your platform of choice) — see docs/deploy.md.");
+    Ok(())
+}

@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+INSTALL_DIR="${HOME}/.zifer"
+
+echo "==> Removing ${INSTALL_DIR}"
+rm -rf "$INSTALL_DIR"
+
+for rc_file in "${HOME}/.bashrc" "${HOME}/.zshrc"; do
+  if [ -f "$rc_file" ]; then
+    sed -i.bak '/# Zifer language/d;/\.zifer\/bin/d' "$rc_file" 2>/dev/null || true
+  fi
+done
+
+echo "✅ Zifer uninstalled. Restart your shell to fully clear PATH."

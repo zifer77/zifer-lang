@@ -1,0 +1,71 @@
+# Zifer Syntax Reference
+
+## Variables
+
+```zifer
+let name: str = "Ada"     // immutable
+var count: int = 0        // mutable
+const PI: int = 3          // immutable, intended for compile-time constants
+```
+
+Type annotations are optional — `let x = 5` infers `int`.
+
+## Functions
+
+```zifer
+fn add(a: int, b: int) -> int {
+    return a + b
+}
+
+async fn fetchThing() -> map {
+    return { ok: true }
+}
+```
+
+## Control flow
+
+```zifer
+if (count > 0) {
+    print("positive")
+} else {
+    print("non-positive")
+}
+
+for (var i = 0; i < 10; i = i + 1) {
+    print(i)
+}
+```
+
+## Data literals
+
+```zifer
+let user = { id: 1, name: "Ada" }     // map/object literal
+let nums = [1, 2, 3]                   // array literal
+```
+
+## Error handling
+
+```zifer
+try {
+    riskyCall()
+} catch (err) {
+    print(err)
+}
+```
+
+## Comments
+
+```zifer
+// single-line comments only, for now
+```
+
+## Types
+
+| Type   | Example        |
+|--------|----------------|
+| `int`  | `42`           |
+| `str`  | `"hello"`      |
+| `bool` | `true`         |
+| `arr`  | `[1, 2, 3]`    |
+| `map`  | `{ a: 1 }`     |
+| `void` | (no value)     |

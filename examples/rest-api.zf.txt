@@ -1,0 +1,30 @@
+// rest-api.zf — a small REST API over an in-memory (mock) user store
+
+model User {
+    id: int,
+    name: str,
+    email: str,
+}
+
+server on 4000 {
+
+    route GET "/users" {
+        return {
+            users: [
+                { id: 1, name: "Ada", email: "ada@example.com" },
+                { id: 2, name: "Grace", email: "grace@example.com" }
+            ]
+        }
+    }
+
+    route POST "/users" {
+        // In a full implementation, request body fields would be bound
+        // automatically (e.g. via `body.name`, `body.email`).
+        return { created: true }
+    }
+
+    route DELETE "/users/:id" {
+        // Path params are exposed the same way, e.g. `params.id`.
+        return { deleted: true }
+    }
+}

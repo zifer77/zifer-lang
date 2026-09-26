@@ -1,0 +1,5 @@
+// hello.zf — the smallest Zifer program
+
+fn main() -> void {
+    print("Hello, Zifer!")
+}

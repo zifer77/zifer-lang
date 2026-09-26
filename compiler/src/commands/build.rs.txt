@@ -1,0 +1,33 @@
+use crate::checker::Checker;
+use crate::codegen;
+use crate::lexer::Lexer;
+use crate::parser::Parser;
+use anyhow::{Context, Result};
+use std::fs;
+
+pub fn execute(path: &str, out: &str) -> Result<()> {
+    let source = fs::read_to_string(path)
+        .with_context(|| format!("Could not read source file `{path}`"))?;
+
+    let tokens = Lexer::new(&source).tokenize();
+    let mut parser = Parser::new(tokens);
+    let program = parser.parse_program();
+
+    let mut checker = Checker::new();
+    if let Err(e) = checker.check_program(&program) {
+        anyhow::bail!("Type error: {}", e.0);
+    }
+
+    match codegen::compile_to_native(&program, out) {
+        Ok(()) => {
+            println!("Built native binary at {out}");
+            Ok(())
+        }
+        Err(e) => {
+            eprintln!("warning: {e}");
+            eprintln!("`zifer build` requires the LLVM backend, which is still in development.");
+            eprintln!("Use `zifer run {path}` to execute via the interpreter instead.");
+            Ok(())
+        }
+    }
+}

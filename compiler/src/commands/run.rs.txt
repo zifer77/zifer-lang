@@ -1,0 +1,24 @@
+use crate::checker::Checker;
+use crate::codegen::Interpreter;
+use crate::lexer::Lexer;
+use crate::parser::Parser;
+use anyhow::{Context, Result};
+use std::fs;
+
+pub fn execute(path: &str) -> Result<()> {
+    let source = fs::read_to_string(path)
+        .with_context(|| format!("Could not read source file `{path}`"))?;
+
+    let tokens = Lexer::new(&source).tokenize();
+    let mut parser = Parser::new(tokens);
+    let program = parser.parse_program();
+
+    let mut checker = Checker::new();
+    if let Err(e) = checker.check_program(&program) {
+        anyhow::bail!("Type error: {}", e.0);
+    }
+
+    let mut interp = Interpreter::new();
+    interp.run(&program)?;
+    Ok(())
+}

@@ -1,0 +1,10 @@
+$InstallDir = "$env:USERPROFILE\.zifer"
+
+Write-Host "==> Removing $InstallDir"
+Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $InstallDir
+
+$UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
+$NewPath = ($UserPath -split ";" | Where-Object { $_ -notlike "*\.zifer\bin*" }) -join ";"
+[Environment]::SetEnvironmentVariable("Path", $NewPath, "User")
+
+Write-Host "Zifer uninstalled." -ForegroundColor Green

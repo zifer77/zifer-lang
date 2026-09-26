@@ -1,0 +1,67 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux-x64
+            archive_ext: tar.gz
+          - os: macos-latest
+            target: darwin-x64
+            archive_ext: tar.gz
+          - os: windows-latest
+            target: windows-x64
+            archive_ext: zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-action@stable
+        with:
+          toolchain: stable
+
+      - name: Build release binary
+        run: cd compiler && cargo build --release
+
+      - name: Package (unix)
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p dist
+          cp compiler/target/release/zifer dist/
+          cd dist && tar -czf ../zifer-${{ matrix.target }}.tar.gz zifer
+
+      - name: Package (windows)
+        if: runner.os == 'Windows'
+        run: |
+          mkdir dist
+          cp compiler/target/release/zifer.exe dist/
+          Compress-Archive -Path dist/zifer.exe -DestinationPath zifer-${{ matrix.target }}.zip
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: zifer-${{ matrix.target }}.${{ matrix.archive_ext }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-vscode:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Publish extension
+        run: |
+          cd vscode-zifer
+          npm install
+          npx vsce publish -p ${{ secrets.VSCE_TOKEN }}

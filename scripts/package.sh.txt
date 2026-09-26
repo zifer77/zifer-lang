@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Package a built binary into the tar.gz/zip layout expected by install.sh.
+set -euo pipefail
+
+OS="${1:?usage: package.sh <os> <arch> <path-to-binary>}"
+ARCH="${2:?usage: package.sh <os> <arch> <path-to-binary>}"
+BIN_PATH="${3:?usage: package.sh <os> <arch> <path-to-binary>}"
+
+cd "$(dirname "$0")/.."
+mkdir -p dist
+STAGE="dist/stage"
+rm -rf "$STAGE"
+mkdir -p "$STAGE"
+
+BIN_NAME="zifer"
+if [ "$OS" = "windows" ]; then
+  BIN_NAME="zifer.exe"
+fi
+
+cp "$BIN_PATH" "$STAGE/$BIN_NAME"
+
+if [ "$OS" = "windows" ]; then
+  OUT="dist/zifer-${OS}-${ARCH}.zip"
+  (cd "$STAGE" && zip -q "../../$OUT" "$BIN_NAME")
+else
+  OUT="dist/zifer-${OS}-${ARCH}.tar.gz"
+  tar -czf "$OUT" -C "$STAGE" "$BIN_NAME"
+fi
+
+echo "✅ Packaged $OUT"

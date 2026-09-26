@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Cross-build the Zifer compiler for all supported release targets.
+# Requires the matching Rust targets to be installed (rustup target add ...).
+set -euo pipefail
+
+cd "$(dirname "$0")/../compiler"
+
+TARGETS=(
+  "x86_64-unknown-linux-gnu"
+  "aarch64-unknown-linux-gnu"
+  "x86_64-apple-darwin"
+  "aarch64-apple-darwin"
+  "x86_64-pc-windows-msvc"
+)
+
+for target in "${TARGETS[@]}"; do
+  echo "==> Building for $target"
+  rustup target add "$target" >/dev/null 2>&1 || true
+  cargo build --release --target "$target"
+done
+
+echo "✅ All targets built. Binaries are under compiler/target/<triple>/release/"

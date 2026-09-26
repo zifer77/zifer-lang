@@ -1,0 +1,46 @@
+# Getting Started with Zifer
+
+## 1. Install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/zifer-lang/zifer/main/install.sh | bash
+```
+
+Windows:
+```powershell
+iwr https://raw.githubusercontent.com/zifer-lang/zifer/main/install.ps1 -useb | iex
+```
+
+Verify:
+```bash
+zifer --version
+```
+
+## 2. Create a project
+
+```bash
+zifer new my-api
+cd my-api
+```
+
+This scaffolds:
+```
+my-api/
+├── main.zf
+├── zifer.toml
+└── .gitignore
+```
+
+## 3. Run it
+
+```bash
+zifer run main.zf
+```
+
+You should see the interpreter start a simulated server and print the routes it registered.
+
+## 4. Next steps
+
+- Read [syntax.md](syntax.md) for the language reference
+- Read [backend.md](backend.md) for servers, routes, and models
+- Read [deploy.md](deploy.md) for shipping a built binary

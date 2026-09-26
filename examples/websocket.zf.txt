@@ -1,0 +1,10 @@
+// websocket.zf — sketch of a websocket-style route
+//
+// NOTE: live websocket support depends on the native runtime (see
+// compiler/src/codegen.rs). This example documents the intended syntax.
+
+server on 5000 {
+    route GET "/ws/chat" {
+        return { message: "upgrade to websocket here (planned API)" }
+    }
+}

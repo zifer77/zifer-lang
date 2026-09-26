@@ -1,0 +1,59 @@
+{
+  "Function declaration": {
+    "prefix": "fn",
+    "body": [
+      "fn ${1:name}(${2:param}: ${3:int}) -> ${4:void} {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Declare a function"
+  },
+  "Server block": {
+    "prefix": "server",
+    "body": [
+      "server on ${1:3000} {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Declare a server block"
+  },
+  "Route handler": {
+    "prefix": "route",
+    "body": [
+      "route ${1|GET,POST,PUT,PATCH,DELETE|} \"${2:/path}\" {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Declare a route handler"
+  },
+  "Model declaration": {
+    "prefix": "model",
+    "body": [
+      "model ${1:Name} {",
+      "\t${2:field}: ${3:str},",
+      "\t$0",
+      "}"
+    ],
+    "description": "Declare a database model"
+  },
+  "Try/catch block": {
+    "prefix": "try",
+    "body": [
+      "try {",
+      "\t$1",
+      "} catch (${2:err}) {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Try/catch block"
+  },
+  "Async function": {
+    "prefix": "async",
+    "body": [
+      "async fn ${1:name}(${2:param}: ${3:int}) -> ${4:void} {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Declare an async function"
+  }
+}

@@ -1,0 +1,26 @@
+.PHONY: build run test clean install fmt lint vscode
+
+build:
+	cd compiler && cargo build --release
+
+run:
+	cd compiler && cargo run -- run ../examples/hello.zf
+
+test:
+	cd compiler && cargo test
+
+clean:
+	cd compiler && cargo clean
+
+install: build
+	mkdir -p $(HOME)/.zifer/bin
+	cp compiler/target/release/zifer $(HOME)/.zifer/bin/zifer
+
+fmt:
+	cd compiler && cargo fmt
+
+lint:
+	cd compiler && cargo clippy -- -D warnings
+
+vscode:
+	cd vscode-zifer && npm install && npx vsce package

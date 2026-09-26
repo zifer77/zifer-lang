@@ -1,0 +1,30 @@
+name: Publish VS Code Extension
+
+on:
+  push:
+    tags:
+      - "vscode-v*"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install deps
+        run: cd vscode-zifer && npm install
+
+      - name: Package extension
+        run: cd vscode-zifer && npx vsce package
+
+      - name: Publish to Marketplace
+        run: cd vscode-zifer && npx vsce publish -p ${{ secrets.VSCE_TOKEN }}
+
+      - name: Upload .vsix artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zifer-vscode-extension
+          path: vscode-zifer/*.vsix
